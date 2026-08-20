@@ -54,6 +54,13 @@ object LocalSessionServer {
                     }
                 }
 
+                get("/status") {
+                    call.respondText(
+                        "{\"capture\":${ScreenCapture.isRunning},\"frames\":${ScreenCapture.frameCount},\"touch\":${RemoteControlAccessibilityService.enabled()},\"width\":${ScreenCapture.deviceWidth},\"height\":${ScreenCapture.deviceHeight}}",
+                        ContentType.Application.Json
+                    )
+                }
+
                 post("/input") {
                     val form = call.receiveParameters()
                     val ok = handleInput(form["action"].orEmpty(), form)
@@ -208,21 +215,59 @@ function fullscreen() {
   if (el.requestFullscreen) el.requestFullscreen();
 }
 const img = document.getElementById('screen');
-let startX = 0, startY = 0, moved = false;
+img.draggable = false;
+let startX = 0, startY = 0, startClientX = 0, startClientY = 0, pointerDown = false, longPressTimer = null, longPressSent = false;
+function normalizedPoint(e) {
+  const r = img.getBoundingClientRect();
+  return {
+    x: Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)),
+    y: Math.max(0, Math.min(1, (e.clientY - r.top) / r.height))
+  };
+}
 img.addEventListener('pointerdown', e => {
-  const r = img.getBoundingClientRect();
-  startX = (e.clientX - r.left) / r.width;
-  startY = (e.clientY - r.top) / r.height;
-  moved = false;
+  e.preventDefault();
+  img.setPointerCapture?.(e.pointerId);
+  const p = normalizedPoint(e);
+  startX = p.x; startY = p.y;
+  startClientX = e.clientX; startClientY = e.clientY;
+  pointerDown = true;
+  longPressSent = false;
+  clearTimeout(longPressTimer);
+  longPressTimer = setTimeout(() => {
+    if (pointerDown) {
+      longPressSent = true;
+      send('long_press', { x: startX, y: startY });
+    }
+  }, 650);
 });
-img.addEventListener('pointermove', () => { moved = true; });
+img.addEventListener('pointermove', e => {
+  if (pointerDown) {
+    e.preventDefault();
+    if (Math.hypot(e.clientX - startClientX, e.clientY - startClientY) >= 12) clearTimeout(longPressTimer);
+  }
+});
 img.addEventListener('pointerup', e => {
-  const r = img.getBoundingClientRect();
-  const x = (e.clientX - r.left) / r.width;
-  const y = (e.clientY - r.top) / r.height;
-  if (!moved) send('tap', { x, y });
-  else send('swipe', { x1: startX, y1: startY, x2: x, y2: y });
+  e.preventDefault();
+  if (!pointerDown) return;
+  pointerDown = false;
+  clearTimeout(longPressTimer);
+  if (longPressSent) return;
+  const p = normalizedPoint(e);
+  const dist = Math.hypot(e.clientX - startClientX, e.clientY - startClientY);
+  if (dist < 12) send('tap', { x: p.x, y: p.y });
+  else send('swipe', { x1: startX, y1: startY, x2: p.x, y2: p.y });
 });
+img.addEventListener('pointercancel', () => { pointerDown = false; clearTimeout(longPressTimer); });
+async function pollStatus() {
+  try {
+    const s = await (await fetch('/status', { cache: 'no-store' })).json();
+    const touch = s.touch ? 'touch enabled' : 'touch disabled: enable BOS Remote Control in Android Accessibility settings';
+    const cap = s.capture ? 'capture on' : 'capture off';
+    document.getElementById('status').textContent = cap + ' • ' + touch + ' • frames: ' + s.frames;
+  } catch (_) {}
+}
+setInterval(pollStatus, 2000);
+pollStatus();
 </script>
 </body></html>
     """.trimIndent()
