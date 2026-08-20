@@ -1,9 +1,11 @@
 package com.bos.app
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.Gravity
@@ -23,6 +25,16 @@ class MainActivity : AppCompatActivity() {
     private lateinit var remoteControlStatus: TextView
     private lateinit var brightnessStatus: TextView
     private var startAfterPermission = false
+    private var autoSetupStarted = false
+    private var promptedAccessibilityThisLaunch = false
+    private var promptedBrightnessThisLaunch = false
+
+    private val notificationPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {
+        // The foreground service still starts if the user denies this, but Android may hide the notification.
+        continueAutoSetup()
+    }
 
     private val capturePermission = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -62,7 +74,7 @@ class MainActivity : AppCompatActivity() {
         sessionUrl = text("Not sharing yet", 20f).apply { setTextIsSelectable(true) }
         content.addView(sessionUrl)
 
-        status = text("Enable what you want, then tap Start sharing. Same-Wi‑Fi devices can open the live address directly.", 15f)
+        status = text("BOS will ask setup permissions automatically. Then tap Start sharing. Same-Wi‑Fi devices can open the live address directly.", 15f)
         status.setPadding(0, dp(8), 0, dp(12))
         content.addView(status)
 
@@ -96,9 +108,45 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(scroll)
         refreshPermissionStatus()
+        scroll.post { beginAutoSetup() }
+    }
+
+    private fun beginAutoSetup() {
+        if (autoSetupStarted) return
+        autoSetupStarted = true
+        continueAutoSetup()
+    }
+
+    private fun continueAutoSetup() {
+        refreshPermissionStatus()
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            status.text = "BOS needs notification permission so you can see when sharing is active."
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            return
+        }
+        if (!RemoteControlAccessibilityService.enabled() && !promptedAccessibilityThisLaunch) {
+            promptedAccessibilityThisLaunch = true
+            status.text = "Enable BOS Remote Control if you want browser taps/swipes to control the phone."
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            return
+        }
+        if (!Settings.System.canWrite(this) && !promptedBrightnessThisLaunch) {
+            promptedBrightnessThisLaunch = true
+            status.text = "Allow BOS to change brightness if you want brightness +/- buttons."
+            startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:$packageName")))
+            return
+        }
+        status.text = "Setup checked. Tap Start sharing when ready."
     }
 
     private fun startSharingFlow() {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
         startAfterPermission = true
         status.text = "Approve Android screen capture, then BOS will show the local URL."
         requestScreenCapturePermission()
@@ -164,5 +212,8 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refreshPermissionStatus()
+        if (autoSetupStarted) {
+            status.post { continueAutoSetup() }
+        }
     }
 }
