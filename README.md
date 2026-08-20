@@ -1,62 +1,56 @@
 # BOS
 
-BOS is a local-first Android screen-sharing system for Android 10+.
+BOS is a local-first Android screen-sharing and remote-control app for Android 10+.
 
-## First release
+## Current v1 direction
 
-- Android device can run as **Sender** or **Viewer**.
-- Sender requests Android's normal screen-capture permission and shows a foreground notification while sharing.
-- Viewers can connect with either the BOS Android app or a modern browser on the same local network.
-- The sender displays a QR code, a copyable connection link, and a human-readable pairing code.
-- A sender-created password is required before a viewer receives a stream.
-- Designed so remote access can be added later without changing the user-facing pairing model.
+BOS uses the phone itself as a small local web server. After the sender starts a session, another device on the same Wi‑Fi opens:
 
-## Connection model
-
-### Local first
-
-The media stream stays on the local Wi-Fi network where possible. WebRTC is the planned transport because it is designed for real-time, low-latency video.
-
-Bluetooth may be used later for nearby-device discovery or pairing, but not as the primary screen-video connection: Wi-Fi is far more reliable for the stream.
-
-### Permanent BOS identity versus a network address
-
-A phone's local IP address is temporary. BOS will therefore keep a stable **BOS device identity** and pairing record separately from the current network route.
-
-The final form of the user-requested permanent URL needs to be chosen before implementation. A browser-accessible local link can only work when its hostname resolves on the current network (for example, a `.local` name) or when a hosted BOS relay resolves it. A device identity can stay permanent even when the local route changes.
-
-The app must never put the sharing password directly in a link or QR code. Instead, a link carries a non-secret device/session reference, and the viewer enters the password before it can join.
-
-## Planned architecture
-
-```
-android-app/
-  sender/                 Android screen capture, local signaling, session controls
-  viewer/                 Android viewer experience
-  shared/                 pairing, crypto, protocol models
-web-viewer/               browser viewer client
-protocol/                 versioned signaling and pairing message definitions
-.github/workflows/        GitHub Actions for APK and web build artifacts (added when GitHub is connected)
+```text
+http://<phone-ip>:8080
 ```
 
-### Key Android components
+The browser enters the BOS password, then receives a live MJPEG screen stream and a control panel.
 
-- Kotlin + Jetpack Compose
-- MediaProjection API for user-approved screen capture
-- Foreground service during an active share
-- WebRTC for video transport
-- Encrypted local storage for the sender's password and device identity
-- QR code generation for pairing
-- Network discovery / resolution layer, abstracted so local Wi-Fi and future remote relay both use the same pairing flow
+## Implemented in the current source
 
-## Reliability and privacy requirements
+- Android sender app with a scrollable UI for small phones.
+- Local browser URL at `http://<phone-ip>:8080`.
+- Password gate before viewer access.
+- MediaProjection foreground capture service with persistent notification.
+- MJPEG screen streaming endpoint at `/stream`.
+- Browser viewer page with fullscreen, touch, swipe, volume, brightness, wake, lock, back, home, recents, notifications, and power-menu buttons.
+- Remote touch/control through an Android Accessibility Service that the sender must enable manually in Android Settings.
+- Brightness control requires Android's separate “modify system settings” permission.
+- Unsupported controls, such as shutdown on normal non-rooted phones, are shown disabled.
+- GitHub Actions workflow builds a downloadable debug APK artifact.
 
-- Clear status for network changes, stopped screen permission, wrong password, disconnected viewer, and unavailable route.
-- Explicit stop-sharing control in the app and notification.
-- No ADB, USB connection, root access, or bypass of Android permissions.
-- Protected apps/content may block capture or appear blank, as required by Android/DRM protections.
-- No remote access service in the first build; remote capability is an intentional later phase requiring a hosted signaling/relay service and security review.
+## Why MJPEG first
 
-## Build status
+WebRTC is still a good future high-performance transport, but it requires signaling, SDP, ICE, native WebRTC, and browser peer-code all to work together. For v1, MJPEG is much simpler and more testable:
 
-The folder has been initialized with the project specification. Android SDK, Java, and Git were not found in the current development environment, so the runnable Android project will be created after the Android toolchain is installed or an existing installation path is provided.
+- Android captures frames with MediaProjection + VirtualDisplay + ImageReader.
+- The app encodes frames as JPEG.
+- The browser displays them with a normal `<img src="/stream">`.
+- Touch and buttons use simple authenticated HTTP endpoints.
+
+Expected tradeoff: MJPEG uses more Wi‑Fi bandwidth and CPU than WebRTC, but it is easier to make reliable on a same-Wi‑Fi local network.
+
+## Android limits
+
+- Screen-capture permission must be approved through Android. BOS cannot bypass this.
+- Accessibility must be enabled by the sender before remote touch works.
+- Brightness requires modify-system-settings permission.
+- File manager access must use Android's user-approved file/folder picker.
+- Actual shutdown is unavailable on normal phones unless the device is rooted, device-owner managed, or controlled through an authorized ADB/device-management bridge.
+- Mobile-data hosting generally will not accept incoming browser connections because carriers use NAT/firewalls; same-Wi‑Fi is the v1 target.
+
+## Build
+
+Push to GitHub and download the `BOS-debug-apk` artifact from Actions.
+
+```bat
+git add .
+git commit -m "Add MJPEG screen stream and browser controls"
+git push
+```

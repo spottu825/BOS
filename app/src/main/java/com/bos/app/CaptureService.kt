@@ -1,30 +1,20 @@
 package com.bos.app
 
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
-import android.media.projection.MediaProjection
+import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
-import org.webrtc.CameraVideoCapturer
-import org.webrtc.EglBase
-import org.webrtc.PeerConnectionFactory
-import org.webrtc.ScreenCapturerAndroid
-import org.webrtc.SurfaceTextureHelper
 
 /**
  * Owns the user-approved screen capture while BOS is sharing.
- * The service stays visible through an ongoing notification and releases capture on stop.
+ * Stays visible through an ongoing notification; releases capture on stop.
  */
 class CaptureService : Service() {
-    private var capturer: ScreenCapturerAndroid? = null
-    private var surfaceTextureHelper: SurfaceTextureHelper? = null
-    private var factory: PeerConnectionFactory? = null
-    private var eglBase: EglBase? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         createChannel()
@@ -41,39 +31,18 @@ class CaptureService : Service() {
             startForeground(NOTIFICATION_ID, notification)
         }
 
+        val resultCode = intent?.getIntExtra(EXTRA_RESULT_CODE, 0) ?: 0
         val projectionData = intent?.getParcelableExtra<Intent>(EXTRA_PROJECTION_DATA)
-        if (projectionData != null && capturer == null) startCapture(projectionData)
+        if (projectionData != null && !ScreenCapture.isRunning) {
+            val manager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+            val projection = manager.getMediaProjection(resultCode, projectionData)
+            if (projection != null) ScreenCapture.start(applicationContext, projection) else stopSelf()
+        }
         return START_NOT_STICKY
     }
 
-    private fun startCapture(projectionData: Intent) {
-        PeerConnectionFactory.initialize(
-            PeerConnectionFactory.InitializationOptions.builder(applicationContext).createInitializationOptions()
-        )
-        factory = PeerConnectionFactory.builder().createPeerConnectionFactory()
-        eglBase = EglBase.create()
-        surfaceTextureHelper = SurfaceTextureHelper.create("BOS-Capture", eglBase!!.eglBaseContext)
-
-        val videoSource = factory!!.createVideoSource(false)
-        capturer = ScreenCapturerAndroid(projectionData, object : MediaProjection.Callback() {
-            override fun onStop() {
-                stopSelf()
-            }
-        })
-        capturer!!.initialize(surfaceTextureHelper, this, videoSource.capturerObserver)
-        capturer!!.startCapture(1280, 720, 24)
-        CaptureState.videoSource = videoSource
-        CaptureState.factory = factory
-        CaptureState.eglBase = eglBase
-    }
-
     override fun onDestroy() {
-        try { capturer?.stopCapture() } catch (_: Exception) { }
-        capturer?.dispose()
-        surfaceTextureHelper?.dispose()
-        factory?.dispose()
-        eglBase?.release()
-        CaptureState.clear()
+        ScreenCapture.stop()
         super.onDestroy()
     }
 
@@ -88,14 +57,8 @@ class CaptureService : Service() {
 
     companion object {
         const val EXTRA_PROJECTION_DATA = "bos.projection.data"
+        const val EXTRA_RESULT_CODE = "bos.projection.result_code"
         private const val CHANNEL = "bos_capture"
         private const val NOTIFICATION_ID = 8080
     }
-}
-
-object CaptureState {
-    @Volatile var videoSource: org.webrtc.VideoSource? = null
-    @Volatile var factory: PeerConnectionFactory? = null
-    @Volatile var eglBase: EglBase? = null
-    fun clear() { videoSource = null; factory = null; eglBase = null }
 }

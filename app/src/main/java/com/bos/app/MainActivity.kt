@@ -3,6 +3,7 @@ package com.bos.app
 import android.content.Context
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
+import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.text.InputType
@@ -32,6 +33,7 @@ class MainActivity : AppCompatActivity() {
         approvedProjection = result.resultCode == RESULT_OK && result.data != null
         if (approvedProjection) {
             val captureIntent = Intent(this, CaptureService::class.java).apply {
+                putExtra(CaptureService.EXTRA_RESULT_CODE, result.resultCode)
                 putExtra(CaptureService.EXTRA_PROJECTION_DATA, result.data)
             }
             ContextCompat.startForegroundService(this, captureIntent)
@@ -76,6 +78,10 @@ class MainActivity : AppCompatActivity() {
             status.text = "Android Settings will ask you to allow or deny BOS Remote Control."
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         })
+        content.addView(button("Allow brightness control") {
+            status.text = "Android Settings will ask you to allow BOS to change system brightness."
+            startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:$packageName")))
+        })
 
         content.addView(text("Share this device's screen", 22f).apply { setPadding(0, padding, 0, 0) })
         passwordInput = EditText(this).apply {
@@ -88,6 +94,7 @@ class MainActivity : AppCompatActivity() {
         content.addView(startButton)
         content.addView(button("Stop session") {
             LocalSessionServer.stop()
+            stopService(Intent(this, CaptureService::class.java))
             sessionUrl.text = "No active session"
             status.text = "BOS local session stopped."
         })
@@ -108,7 +115,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun startLocalSession() {
         try {
-            val session = LocalSessionServer.start(passwordInput.text.toString())
+            val session = LocalSessionServer.start(this, passwordInput.text.toString())
             sessionUrl.text = session.url
             status.text = "Session is live. On another device using the same Wi-Fi, open the address above in Chrome."
         } catch (error: Exception) {
