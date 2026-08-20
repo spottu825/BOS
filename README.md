@@ -10,13 +10,13 @@ BOS uses the phone itself as a small local web server. After the sender starts a
 http://<phone-ip>:8080
 ```
 
-The browser enters the BOS password, then receives a live MJPEG screen stream and a control panel.
+The browser opens directly into the live MJPEG screen stream and control panel on the same Wi‑Fi network.
 
 ## Implemented in the current source
 
 - Android sender app with a scrollable UI for small phones.
 - Local browser URL at `http://<phone-ip>:8080`.
-- Password gate before viewer access.
+- Same-Wi‑Fi direct viewer access with no login screen.
 - MediaProjection foreground capture service with persistent notification.
 - MJPEG screen streaming endpoint at `/stream`.
 - Browser viewer page with fullscreen, touch, swipe, volume, brightness, wake, lock, back, home, recents, notifications, and power-menu buttons.

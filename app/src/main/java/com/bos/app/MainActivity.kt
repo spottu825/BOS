@@ -6,11 +6,9 @@ import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
-import android.text.InputType
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.Button
-import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -22,36 +20,34 @@ import java.security.SecureRandom
 class MainActivity : AppCompatActivity() {
     private lateinit var status: TextView
     private lateinit var sessionUrl: TextView
-    private lateinit var passwordInput: EditText
-    private lateinit var startButton: Button
     private lateinit var remoteControlStatus: TextView
-    private var approvedProjection = false
+    private lateinit var brightnessStatus: TextView
+    private var startAfterPermission = false
 
     private val capturePermission = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        approvedProjection = result.resultCode == RESULT_OK && result.data != null
-        if (approvedProjection) {
+        val approved = result.resultCode == RESULT_OK && result.data != null
+        if (approved) {
             val captureIntent = Intent(this, CaptureService::class.java).apply {
                 putExtra(CaptureService.EXTRA_RESULT_CODE, result.resultCode)
                 putExtra(CaptureService.EXTRA_PROJECTION_DATA, result.data)
             }
             ContextCompat.startForegroundService(this, captureIntent)
-        }
-        status.text = if (approvedProjection) {
-            "Screen permission granted. Tap Start local session."
+            status.text = "Screen permission granted. BOS is starting sharing."
+            if (startAfterPermission) startLocalSession()
         } else {
-            "Screen permission was denied. BOS cannot share without it."
+            status.text = "Screen permission was denied. BOS cannot show the phone screen without it."
         }
-        startButton.isEnabled = approvedProjection
+        startAfterPermission = false
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        showSenderScreen()
+        showMainScreen()
     }
 
-    private fun showSenderScreen() {
+    private fun showMainScreen() {
         val padding = dp(16)
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -60,66 +56,61 @@ class MainActivity : AppCompatActivity() {
         val scroll = ScrollView(this).apply { addView(content) }
 
         content.addView(text("BOS", 30f, Gravity.CENTER))
-        content.addView(text("Live browser address", 14f))
-        sessionUrl = text("No active session", 19f).apply { setTextIsSelectable(true) }
+        content.addView(text("Same-Wi‑Fi screen sharing", 16f, Gravity.CENTER))
+
+        content.addView(text("Live browser address", 14f).apply { setPadding(0, dp(12), 0, 0) })
+        sessionUrl = text("Not sharing yet", 20f).apply { setTextIsSelectable(true) }
         content.addView(sessionUrl)
-        status = text("Create a password, allow capture, then start a local session.", 15f)
-        status.setPadding(0, dp(6), 0, dp(10))
+
+        status = text("Enable what you want, then tap Start sharing. Same-Wi‑Fi devices can open the live address directly.", 15f)
+        status.setPadding(0, dp(8), 0, dp(12))
         content.addView(status)
 
         content.addView(text("Permanent BOS identity", 14f))
         content.addView(text(permanentIdentity(), 18f))
-        content.addView(text("Use this identity later inside the BOS Android viewer app. Browser connection uses the live address above.", 13f))
 
-        content.addView(button("Use this device as a viewer") { showViewerScreen() })
-        remoteControlStatus = text("Remote control: Disabled", 15f).apply { setPadding(0, dp(8), 0, 0) }
+        remoteControlStatus = text("Remote control: checking...", 15f).apply { setPadding(0, dp(12), 0, 0) }
         content.addView(remoteControlStatus)
-        content.addView(button("Allow remote control") {
+        content.addView(button("Enable touch control") {
             status.text = "Android Settings will ask you to allow or deny BOS Remote Control."
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         })
-        content.addView(button("Allow brightness control") {
+
+        brightnessStatus = text("Brightness control: checking...", 15f).apply { setPadding(0, dp(10), 0, 0) }
+        content.addView(brightnessStatus)
+        content.addView(button("Enable brightness control") {
             status.text = "Android Settings will ask you to allow BOS to change system brightness."
             startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:$packageName")))
         })
 
-        content.addView(text("Share this device's screen", 22f).apply { setPadding(0, padding, 0, 0) })
-        passwordInput = EditText(this).apply {
-            hint = "BOS password (6+ characters)"
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-        }
-        content.addView(passwordInput)
-        content.addView(button("1. Allow screen permission") { requestScreenCapturePermission() })
-        startButton = button("2. Start local session") { startLocalSession() }.apply { isEnabled = false }
-        content.addView(startButton)
-        content.addView(button("Stop session") {
+        content.addView(button("Start sharing") { startSharingFlow() }.apply { textSize = 18f })
+        content.addView(button("Stop sharing") {
             LocalSessionServer.stop()
             stopService(Intent(this, CaptureService::class.java))
-            sessionUrl.text = "No active session"
-            status.text = "BOS local session stopped."
+            sessionUrl.text = "Not sharing yet"
+            status.text = "BOS sharing stopped."
         })
 
+        content.addView(text("Keep BOS running", 18f).apply { setPadding(0, dp(16), 0, 0) })
+        content.addView(text("While sharing, BOS runs as a foreground service with a notification so it can stay active in the background. Android may still stop capture after reboot, force close, battery restrictions, or if you revoke screen capture.", 13f))
+
         setContentView(scroll)
+        refreshPermissionStatus()
     }
 
-    private fun showViewerScreen() {
-        val content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(16), dp(16), dp(16))
-        }
-        content.addView(text("BOS Viewer", 30f, Gravity.CENTER))
-        content.addView(text("Open a sender's local address in your browser. Native BOS pairing and live viewing are the next implementation step.", 16f))
-        content.addView(button("Back to sender") { showSenderScreen() })
-        setContentView(ScrollView(this).apply { addView(content) })
+    private fun startSharingFlow() {
+        startAfterPermission = true
+        status.text = "Approve Android screen capture, then BOS will show the local URL."
+        requestScreenCapturePermission()
     }
 
     private fun startLocalSession() {
         try {
-            val session = LocalSessionServer.start(this, passwordInput.text.toString())
+            val session = LocalSessionServer.start(this)
             sessionUrl.text = session.url
-            status.text = "Session is live. On another device using the same Wi-Fi, open the address above in Chrome."
+            status.text = "Sharing is live. On another device on the same Wi‑Fi, open the address above in Chrome."
         } catch (error: Exception) {
-            status.text = "Could not start session: ${error.message ?: "unknown error"}"
+            status.text = "Could not start sharing: ${error.message ?: "unknown error"}"
         }
     }
 
@@ -139,6 +130,23 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun refreshPermissionStatus() {
+        if (::remoteControlStatus.isInitialized) {
+            remoteControlStatus.text = if (RemoteControlAccessibilityService.enabled()) {
+                "Touch control: enabled"
+            } else {
+                "Touch control: disabled — tap Enable touch control"
+            }
+        }
+        if (::brightnessStatus.isInitialized) {
+            brightnessStatus.text = if (Settings.System.canWrite(this)) {
+                "Brightness control: enabled"
+            } else {
+                "Brightness control: disabled — tap Enable brightness control"
+            }
+        }
+    }
+
     private fun text(value: String, size: Float, gravity: Int = Gravity.START) = TextView(this).apply {
         text = value
         textSize = size
@@ -155,17 +163,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (::remoteControlStatus.isInitialized) {
-            remoteControlStatus.text = if (RemoteControlAccessibilityService.enabled()) {
-                "Remote control: Enabled — BOS will accept touch input only for an authenticated session."
-            } else {
-                "Remote control: Disabled — tap Allow remote control to open Android Settings."
-            }
-        }
-    }
-
-    override fun onDestroy() {
-        LocalSessionServer.stop()
-        super.onDestroy()
+        refreshPermissionStatus()
     }
 }
