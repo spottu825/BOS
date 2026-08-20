@@ -146,13 +146,20 @@ object LocalSessionServer {
         true
     } catch (_: Throwable) { false }
 
-    private fun brightness(ctx: Context, delta: Int): Boolean = try {
-        if (!Settings.System.canWrite(ctx)) return false
-        val current = Settings.System.getInt(ctx.contentResolver, Settings.System.SCREEN_BRIGHTNESS, 128)
-        val next = (current + delta).coerceIn(0, 255)
-        Settings.System.putInt(ctx.contentResolver, Settings.System.SCREEN_BRIGHTNESS, next)
-        true
-    } catch (_: Throwable) { false }
+    private fun brightness(ctx: Context, delta: Int): Boolean {
+        return try {
+            if (!Settings.System.canWrite(ctx)) {
+                false
+            } else {
+                val current = Settings.System.getInt(ctx.contentResolver, Settings.System.SCREEN_BRIGHTNESS, 128)
+                val next = (current + delta).coerceIn(0, 255)
+                Settings.System.putInt(ctx.contentResolver, Settings.System.SCREEN_BRIGHTNESS, next)
+                true
+            }
+        } catch (_: Throwable) {
+            false
+        }
+    }
 
     fun stop() {
         engine?.stop(300, 1_000)
