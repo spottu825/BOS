@@ -171,10 +171,11 @@ object LocalSessionServer {
 <title>BOS</title>
 <style>
 body{margin:0;font-family:sans-serif;background:#101114;color:#fff}
-#screen{width:100%;display:block;touch-action:none;background:#000;min-height:60vh;object-fit:contain}
-#bar{display:flex;flex-wrap:wrap;gap:6px;padding:8px;background:#1c1e24;position:sticky;top:0;z-index:2}
-button{background:#7c4dff;color:#fff;font-weight:bold;border:0;border-radius:8px;width:auto;flex:1 1 70px;margin:0;padding:10px 4px;font-size:12px}
+#bar{display:flex;flex-wrap:wrap;gap:5px;padding:6px;background:#1c1e24;position:sticky;top:0;z-index:2}
+button{background:#7c4dff;color:#fff;font-weight:bold;border:0;border-radius:8px;width:auto;flex:1 1 64px;margin:0;padding:8px 3px;font-size:11px}
 button:disabled{background:#555;color:#aaa}
+#stage{display:flex;justify-content:center;align-items:flex-start;padding:8px;background:#101114}
+#screen{display:block;touch-action:none;background:#000;width:auto;max-width:min(96vw,430px);max-height:calc(100vh - 135px);height:auto;object-fit:contain;border:1px solid #333;border-radius:10px}
 #status{padding:6px 10px;font-size:12px;color:#9aa0ad}
 </style></head>
 <body>
@@ -194,8 +195,8 @@ button:disabled{background:#555;color:#aaa}
     <button disabled title="File manager needs a sender-side folder picker later">Files</button>
     <button disabled title="Not available on normal phones without ADB/root/device-owner">Shutdown</button>
   </div>
-  <img id="screen" src="/stream" alt="BOS screen stream">
-  <div id="status">Same Wi-Fi mode. Tap screen to tap phone; drag to swipe.</div>
+  <div id="stage"><img id="screen" src="/stream" alt="BOS screen stream"></div>
+  <div id="status">Same Wi-Fi mode. Phone preview is fit-to-screen. Tap preview to tap phone; drag to swipe.</div>
 <script>
 async function send(action, extra) {
   const body = new URLSearchParams(Object.assign({ action }, extra || {}));
