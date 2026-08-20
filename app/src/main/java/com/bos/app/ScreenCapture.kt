@@ -116,12 +116,13 @@ object ScreenCapture {
     fun latestFrame(): ByteArray? = latestJpeg
 
     fun stop() {
+        val projectionToStop = projection
+        projection = null
         virtualDisplay?.release()
         virtualDisplay = null
         reader?.close()
         reader = null
-        try { projection?.stop() } catch (_: Throwable) { }
-        projection = null
+        try { projectionToStop?.stop() } catch (_: Throwable) { }
         thread?.quitSafely()
         thread = null
         reusableBitmap?.recycle()
