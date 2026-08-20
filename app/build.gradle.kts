@@ -34,8 +34,15 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.12.0")
 
-    // Sender phone hosts this small local pairing/session page.
+    // Sender phone hosts local HTTP and WebSocket signaling.
     implementation("io.ktor:ktor-server-core-jvm:2.3.12")
     implementation("io.ktor:ktor-server-cio-jvm:2.3.12")
+    implementation("io.ktor:ktor-server-websockets-jvm:2.3.12")
+
+    // Direct encrypted media between sender and viewer.
+    implementation("io.github.webrtc-sdk:android:144.7559.12")
     implementation("com.google.zxing:core:3.5.3")
+
+    // JSON signaling messages.
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 }

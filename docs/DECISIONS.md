@@ -34,4 +34,12 @@ Choose the desired behavior:
    - A permanent link opens/installs the viewer; a locally generated session URL carries the connection route.
    - Most reliable design for browser and app support without hosting a remote stream in the first release.
 
+## Confirmed control behavior
+
+Power controls must show both options, with unsupported actions visibly disabled:
+
+- Wake screen / show the Android power menu where normal Android permissions allow it.
+- Actual shutdown only where the device is rooted or provisioned as device owner.
+- A regular consumer phone must never pretend that an unavailable shutdown action succeeded.
+
 No URL or QR code will contain the actual sharing password. The viewer will always be challenged for it.

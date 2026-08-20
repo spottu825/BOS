@@ -12,6 +12,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.BOS">
         <service
+            android:name=".CaptureService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
+
+        <service
             android:name=".RemoteControlAccessibilityService"
             android:exported="false"
             android:label="BOS Remote Control"

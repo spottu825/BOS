@@ -15,6 +15,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import java.security.SecureRandom
 
 class MainActivity : AppCompatActivity() {
@@ -29,6 +30,12 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         approvedProjection = result.resultCode == RESULT_OK && result.data != null
+        if (approvedProjection) {
+            val captureIntent = Intent(this, CaptureService::class.java).apply {
+                putExtra(CaptureService.EXTRA_PROJECTION_DATA, result.data)
+            }
+            ContextCompat.startForegroundService(this, captureIntent)
+        }
         status.text = if (approvedProjection) {
             "Screen permission granted. Tap Start local session."
         } else {
