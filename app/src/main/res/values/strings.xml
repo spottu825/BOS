@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">BOS</string>
-    <string name="bos_remote_control_description">Lets BOS perform touch gestures only while you explicitly enable remote control for an authenticated local session.</string>
+    <string name="app_name">BOS Screen Share</string>
+    <string name="bos_remote_control_description">Lets BOS perform touch gestures only while you explicitly enable remote control for a sharing session.</string>
 </resources>

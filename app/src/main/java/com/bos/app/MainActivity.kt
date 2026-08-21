@@ -26,6 +26,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var permissionText: TextView
     private var startAfterPermission = false
+    private var pendingCaptureAfterNotification = false
     private var autoSetupStarted = false
     private var promptedAccessibilityThisLaunch = false
     private var promptedBrightnessThisLaunch = false
@@ -33,7 +34,14 @@ class MainActivity : AppCompatActivity() {
     private val notificationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) {
-        continueAutoSetup()
+        if (pendingCaptureAfterNotification) {
+            pendingCaptureAfterNotification = false
+            startAfterPermission = true
+            statusText.text = "Now approve the Android screen sharing popup. This permission is not in Settings."
+            requestScreenCapturePermission()
+        } else {
+            continueAutoSetup()
+        }
     }
 
     private val capturePermission = registerForActivityResult(
@@ -49,7 +57,7 @@ class MainActivity : AppCompatActivity() {
             statusText.text = "Screen permission allowed. Starting session..."
             if (startAfterPermission) startLocalSession()
         } else {
-            statusText.text = "Screen permission denied. BOS cannot share the screen without it."
+            statusText.text = "Screen sharing was not allowed. Tap Start local session again and choose Start now on Android's popup. This permission is not available in Settings."
         }
         startAfterPermission = false
     }
@@ -72,8 +80,14 @@ class MainActivity : AppCompatActivity() {
             addView(content)
         }
 
-        content.addView(text("BOS", 32f, Gravity.CENTER, Color.BLACK))
-        content.addView(text("URL", 14f, Gravity.CENTER, Color.DKGRAY).apply { setPadding(0, dp(12), 0, 0) })
+        content.addView(text(if (BuildConfig.BOS_SAFE_BUILD) "BOS Screen Share" else "BOS Full Control", 30f, Gravity.CENTER, Color.BLACK))
+        content.addView(text(
+            if (BuildConfig.BOS_SAFE_BUILD) "View-only build for clients. Tap Start, then approve Android's screen sharing popup." else "Advanced build. Screen sharing plus optional remote-control permissions.",
+            14f,
+            Gravity.CENTER,
+            Color.DKGRAY
+        ).apply { setPadding(0, dp(8), 0, dp(8)) })
+        content.addView(text("URL", 14f, Gravity.CENTER, Color.DKGRAY).apply { setPadding(0, dp(8), 0, 0) })
 
         urlText = text("Local URL: not started\nGlobal URL: not connected yet", 18f, Gravity.CENTER, Color.rgb(20, 90, 170)).apply {
             setTextIsSelectable(true)
@@ -96,7 +110,7 @@ class MainActivity : AppCompatActivity() {
         }
         content.addView(permissionText)
 
-        statusText = text("Open BOS and allow setup permissions. Then tap Start local session.", 15f, Gravity.CENTER, Color.BLACK).apply {
+        statusText = text("Tap Start local session, then tap Start now on Android's screen sharing popup. Screen sharing cannot be pre-enabled in Settings.", 15f, Gravity.CENTER, Color.BLACK).apply {
             setPadding(0, 0, 0, dp(20))
         }
         content.addView(statusText)
@@ -156,17 +170,20 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:$packageName")))
             return
         }
-        statusText.text = "Setup checked. Tap Start local session."
+        statusText.text = "Setup checked. Tap Start local session; Android will ask for screen sharing every time."
     }
 
     private fun startSharingFlow() {
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
         ) {
+            pendingCaptureAfterNotification = true
+            statusText.text = "First allow notifications, then BOS will open Android's screen sharing popup."
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            return
         }
         startAfterPermission = true
-        statusText.text = "Approve Android screen capture."
+        statusText.text = "Approve Android screen sharing. On the popup, tap Start now."
         requestScreenCapturePermission()
     }
 

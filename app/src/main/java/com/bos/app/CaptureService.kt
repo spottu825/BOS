@@ -20,8 +20,8 @@ class CaptureService : Service() {
         createChannel()
         val notification = NotificationCompat.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_menu_view)
-            .setContentTitle("BOS screen sharing is active")
-            .setContentText("Tap to return to BOS and stop sharing")
+            .setContentTitle("BOS Screen Share is active")
+            .setContentText("Your screen is being shared. Open BOS to stop.")
             .setOngoing(true)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .build()
@@ -57,7 +57,7 @@ class CaptureService : Service() {
 
     private fun createChannel() {
         if (Build.VERSION.SDK_INT >= 26) {
-            val channel = NotificationChannel(CHANNEL, "BOS screen sharing", NotificationManager.IMPORTANCE_LOW)
+            val channel = NotificationChannel(CHANNEL, "BOS Screen Share", NotificationManager.IMPORTANCE_LOW)
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
     }
