@@ -1,0 +1,16 @@
+{
+  "name": "bos-receiver",
+  "version": "0.1.0",
+  "private": true,
+  "description": "BOS desktop receiver with viewer launcher and local ADB terminal.",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "check": "node --check src/server.js"
+  },
+  "dependencies": {},
+  "engines": {
+    "node": ">=20"
+  }
+}

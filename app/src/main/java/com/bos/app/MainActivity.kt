@@ -74,7 +74,7 @@ class MainActivity : AppCompatActivity() {
         content.addView(text("BOS", 32f, Gravity.CENTER, Color.BLACK))
         content.addView(text("URL", 14f, Gravity.CENTER, Color.DKGRAY).apply { setPadding(0, dp(12), 0, 0) })
 
-        urlText = text("Permanent URL not connected yet\nStart local session for same-Wi‑Fi URL", 18f, Gravity.CENTER, Color.rgb(20, 90, 170)).apply {
+        urlText = text("Local URL: not started\nGlobal URL: not connected yet", 18f, Gravity.CENTER, Color.rgb(20, 90, 170)).apply {
             setTextIsSelectable(true)
             setPadding(0, dp(8), 0, dp(16))
         }
@@ -98,7 +98,7 @@ class MainActivity : AppCompatActivity() {
         content.addView(button("Stop") {
             LocalSessionServer.stop()
             stopService(Intent(this, CaptureService::class.java))
-            urlText.text = "Permanent URL not connected yet\nStart local session for same-Wi‑Fi URL"
+            urlText.text = "Local URL: not started\nGlobal URL: not connected yet"
             statusText.text = "Stopped."
         })
 
@@ -162,8 +162,8 @@ class MainActivity : AppCompatActivity() {
     private fun startLocalSession() {
         try {
             val session = LocalSessionServer.start(this)
-            urlText.text = session.url
-            statusText.text = "Local session started. Open this URL on the same Wi‑Fi."
+            urlText.text = "Local URL: ${session.url}\nGlobal URL: not connected yet"
+            statusText.text = "Local session started. Open the local URL on the same Wi‑Fi. Global URL needs relay integration."
         } catch (error: Exception) {
             statusText.text = "Could not start session: ${error.message ?: "unknown error"}"
         }
