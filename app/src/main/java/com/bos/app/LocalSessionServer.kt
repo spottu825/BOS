@@ -184,7 +184,7 @@ body{margin:0;font-family:sans-serif;background:#101114;color:#fff}
 button{background:#7c4dff;color:#fff;font-weight:bold;border:0;border-radius:8px;width:auto;flex:1 1 64px;margin:0;padding:8px 3px;font-size:11px}
 button:disabled{background:#555;color:#aaa}
 #stage{display:flex;justify-content:center;align-items:flex-start;padding:8px;background:#101114}
-#screen{display:block;touch-action:none;background:#000;width:auto;max-width:min(96vw,430px);max-height:calc(100vh - 135px);height:auto;object-fit:contain;border:1px solid #333;border-radius:10px}
+#screen{display:block;touch-action:none;background:#000;width:auto;max-width:min(96vw,430px);max-height:calc(100dvh - 145px);height:auto;object-fit:contain;border:1px solid #333;border-radius:10px}@supports not (height:100dvh){#screen{max-height:calc(100vh - 145px)}}
 #status{padding:6px 10px;font-size:12px;color:#9aa0ad}
 </style></head>
 <body>

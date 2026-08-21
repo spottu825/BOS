@@ -127,6 +127,10 @@ class MainActivity : AppCompatActivity() {
             statusText.text = "Stopped."
         })
 
+        content.addView(button("Battery / brand help") { openBatteryHelp() }.apply {
+            textSize = 14f
+        })
+
         content.addView(text("Device ID: ${permanentIdentity()}", 13f, Gravity.CENTER, Color.GRAY).apply {
             setPadding(0, dp(18), 0, 0)
         })
@@ -216,6 +220,15 @@ class MainActivity : AppCompatActivity() {
         globalCodeText.text = globalLine()
         if (GlobalRelayClient.relayConfigured() && GlobalRelayClient.viewerUrl == null && GlobalRelayClient.lastError == null) {
             urlText.postDelayed({ refreshGlobalUrlLine(localUrl) }, 2500)
+        }
+    }
+
+    private fun openBatteryHelp() {
+        statusText.text = "For Samsung/Vivo/Oppo/Google: allow unrestricted battery/background usage for stable sharing."
+        try {
+            startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+        } catch (_: Exception) {
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
         }
     }
 
