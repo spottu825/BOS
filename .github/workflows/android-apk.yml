@@ -35,15 +35,23 @@ jobs:
           path: ~/.android/debug.keystore
           key: bos-debug-keystore-v1
 
-      - name: Build debug APK
+      - name: Build debug APKs
         env:
           BOS_RELAY_URL: ${{ vars.BOS_RELAY_URL || secrets.BOS_RELAY_URL }}
-        run: gradle :app:assembleDebug
+        run: gradle :app:assembleSafeDebug :app:assembleFullDebug
 
-      - name: Upload debug APK
+      - name: Upload safe debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: BOS-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: BOS-safe-debug-apk
+          path: app/build/outputs/apk/safe/debug/app-safe-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload full debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BOS-full-debug-apk
+          path: app/build/outputs/apk/full/debug/app-full-debug.apk
           if-no-files-found: error
           retention-days: 14

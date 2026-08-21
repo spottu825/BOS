@@ -144,13 +144,13 @@ class MainActivity : AppCompatActivity() {
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
             return
         }
-        if (!RemoteControlAccessibilityService.enabled() && !promptedAccessibilityThisLaunch) {
+        if (!BuildConfig.BOS_SAFE_BUILD && !RemoteControlAccessibilityService.enabled() && !promptedAccessibilityThisLaunch) {
             promptedAccessibilityThisLaunch = true
             statusText.text = "Enable BOS Remote Control if you want browser taps/swipes."
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
             return
         }
-        if (!Settings.System.canWrite(this) && !promptedBrightnessThisLaunch) {
+        if (!BuildConfig.BOS_SAFE_BUILD && !Settings.System.canWrite(this) && !promptedBrightnessThisLaunch) {
             promptedBrightnessThisLaunch = true
             statusText.text = "Allow brightness control if you want brightness +/- buttons."
             startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:$packageName")))
@@ -236,12 +236,16 @@ class MainActivity : AppCompatActivity() {
 
     private fun refreshPermissionStatus() {
         if (!::permissionText.isInitialized) return
-        val touch = if (RemoteControlAccessibilityService.enabled()) "touch on" else "touch off"
-        val brightness = if (Settings.System.canWrite(this)) "brightness on" else "brightness off"
         val notification = if (Build.VERSION.SDK_INT < 33 ||
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED
         ) "notification on" else "notification off"
-        permissionText.text = "Permissions: $notification • $touch • $brightness"
+        if (BuildConfig.BOS_SAFE_BUILD) {
+            permissionText.text = "Permissions: $notification • safe view-only build"
+        } else {
+            val touch = if (RemoteControlAccessibilityService.enabled()) "touch on" else "touch off"
+            val brightness = if (Settings.System.canWrite(this)) "brightness on" else "brightness off"
+            permissionText.text = "Permissions: $notification • $touch • $brightness"
+        }
     }
 
     private fun text(value: String, size: Float, gravity: Int, color: Int) = TextView(this).apply {

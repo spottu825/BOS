@@ -77,6 +77,7 @@ object LocalSessionServer {
     }
 
     fun dispatchInput(action: String, params: Map<String, String>): Boolean {
+        if (BuildConfig.BOS_SAFE_BUILD) return false
         val ctx = appContext ?: return false
         return when (action) {
             "tap" -> {
