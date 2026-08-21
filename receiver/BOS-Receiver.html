@@ -1,0 +1,105 @@
+<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>BOS Receiver</title>
+  <style>
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, sans-serif; background:#f5f5f5; color:#111; }
+    header { background:white; padding:14px 18px; box-shadow:0 1px 8px #0001; position:sticky; top:0; z-index:5; }
+    h1 { margin:0; font-size:24px; }
+    main { max-width:1100px; margin:0 auto; padding:16px; }
+    .card { background:white; border-radius:14px; padding:16px; box-shadow:0 2px 18px #0001; margin-bottom:14px; }
+    label { display:block; font-size:13px; color:#555; margin:8px 0 4px; }
+    input, button { font-size:16px; padding:11px; border-radius:9px; box-sizing:border-box; }
+    input { width:100%; border:1px solid #ccc; }
+    button { border:0; background:#6246ea; color:white; font-weight:600; cursor:pointer; margin:8px 6px 0 0; }
+    button.secondary { background:#e7e9f6; color:#222; }
+    button:disabled { background:#999; cursor:not-allowed; }
+    iframe { width:100%; height:70vh; border:1px solid #ccc; border-radius:12px; background:#111; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; }
+    .muted { color:#666; font-size:14px; }
+    .pill { display:inline-block; background:#e7e9f6; padding:4px 8px; border-radius:999px; font-size:12px; color:#333; }
+    .warn { background:#fff7e6; border:1px solid #ffd591; color:#8a4b00; padding:10px; border-radius:10px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>BOS Receiver <span class="pill">standalone</span></h1>
+    <div class="muted">Open this file directly. No Node/npm needed for local viewing.</div>
+  </header>
+  <main>
+    <section class="card">
+      <h2>Connect to phone</h2>
+      <p class="muted">On the phone, open BOS → Start local session → copy the local URL shown at the top.</p>
+      <label>Phone URL</label>
+      <input id="phoneUrl" placeholder="http://192.168.x.x:8080">
+      <div class="row">
+        <button onclick="openInside()">Open inside receiver</button>
+        <button class="secondary" onclick="openNewTab()">Open in new tab</button>
+        <button class="secondary" onclick="saveUrl()">Save URL</button>
+        <button class="secondary" onclick="clearViewer()">Clear</button>
+      </div>
+      <p id="status" class="muted">Waiting for phone URL.</p>
+    </section>
+
+    <section class="card">
+      <iframe id="viewer" title="BOS phone viewer"></iframe>
+    </section>
+
+    <section class="card">
+      <h2>Global mode</h2>
+      <div class="warn">
+        Global URL is not active yet. It needs hosted BOS relay + Android APK global integration. Current working mode is same-Wi‑Fi local URL.
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>ADB terminal</h2>
+      <p class="muted">ADB cannot run from this standalone file. Use the Node receiver server for ADB terminal:</p>
+      <pre>cd C:\Users\A\Documents\BOS\receiver
+.\start-receiver.bat
+
+Then open: http://127.0.0.1:9090/adb</pre>
+    </section>
+  </main>
+<script>
+  const input = document.getElementById('phoneUrl');
+  const viewer = document.getElementById('viewer');
+  const status = document.getElementById('status');
+  input.value = localStorage.getItem('bosPhoneUrl') || '';
+
+  function normalizeUrl() {
+    let url = input.value.trim();
+    if (!url) return '';
+    if (!/^https?:\/\//i.test(url)) url = 'http://' + url;
+    input.value = url;
+    return url;
+  }
+  function saveUrl() {
+    const url = normalizeUrl();
+    if (url) {
+      localStorage.setItem('bosPhoneUrl', url);
+      status.textContent = 'Saved ' + url;
+    }
+  }
+  function openInside() {
+    const url = normalizeUrl();
+    if (!url) return status.textContent = 'Enter the phone URL first.';
+    saveUrl();
+    viewer.src = url;
+    status.textContent = 'Opening inside receiver: ' + url;
+  }
+  function openNewTab() {
+    const url = normalizeUrl();
+    if (!url) return status.textContent = 'Enter the phone URL first.';
+    saveUrl();
+    window.open(url, '_blank');
+    status.textContent = 'Opened in new tab: ' + url;
+  }
+  function clearViewer() {
+    viewer.src = 'about:blank';
+    status.textContent = 'Viewer cleared.';
+  }
+</script>
+</body>
+</html>

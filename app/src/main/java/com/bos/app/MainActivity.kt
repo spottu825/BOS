@@ -22,6 +22,7 @@ import java.security.SecureRandom
 
 class MainActivity : AppCompatActivity() {
     private lateinit var urlText: TextView
+    private lateinit var globalCodeText: TextView
     private lateinit var statusText: TextView
     private lateinit var permissionText: TextView
     private var startAfterPermission = false
@@ -79,6 +80,15 @@ class MainActivity : AppCompatActivity() {
             setPadding(0, dp(8), 0, dp(16))
         }
         content.addView(urlText)
+
+        globalCodeText = text("Global code: ${globalPairCode()}\nNot online until relay is connected", 20f, Gravity.CENTER, Color.rgb(120, 60, 180)).apply {
+            setTextIsSelectable(true)
+            setPadding(0, 0, 0, dp(14))
+        }
+        content.addView(globalCodeText)
+        content.addView(button("Refresh global code") {
+            globalCodeText.text = "Global code: ${newGlobalPairCode()}\nNot online until relay is connected"
+        })
 
         permissionText = text("Permissions: checking...", 14f, Gravity.CENTER, Color.DKGRAY).apply {
             setPadding(0, 0, 0, dp(10))
@@ -163,7 +173,7 @@ class MainActivity : AppCompatActivity() {
         try {
             val session = LocalSessionServer.start(this)
             urlText.text = "Local URL: ${session.url}\nGlobal URL: not connected yet"
-            statusText.text = "Local session started. Open the local URL on the same Wi‑Fi. Global URL needs relay integration."
+            statusText.text = "Local session started. Open the local URL on the same Wi‑Fi. Global code is generated, but internet pairing needs relay integration."
         } catch (error: Exception) {
             statusText.text = "Could not start session: ${error.message ?: "unknown error"}"
         }
@@ -183,6 +193,22 @@ class MainActivity : AppCompatActivity() {
             prefs.edit().putString("identity", value).apply()
             value
         }
+    }
+
+    private fun globalPairCode(): String {
+        val prefs = getSharedPreferences("bos", MODE_PRIVATE)
+        val expiresAt = prefs.getLong("global_code_expires_at", 0L)
+        val saved = prefs.getString("global_pair_code", null)
+        return if (saved != null && System.currentTimeMillis() < expiresAt) saved else newGlobalPairCode()
+    }
+
+    private fun newGlobalPairCode(): String {
+        val code = SecureRandom().nextInt(900_000).plus(100_000).toString()
+        getSharedPreferences("bos", MODE_PRIVATE).edit()
+            .putString("global_pair_code", code)
+            .putLong("global_code_expires_at", System.currentTimeMillis() + 5 * 60 * 1000)
+            .apply()
+        return code
     }
 
     private fun refreshPermissionStatus() {

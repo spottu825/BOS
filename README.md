@@ -17,6 +17,7 @@ The browser opens directly into the live MJPEG screen stream and control panel o
 - Android sender app with a scrollable UI for small phones.
 - Local browser URL at `http://<phone-ip>:8080`.
 - Same-Wi‑Fi direct viewer access with no login screen.
+- Auto-generated 6-digit global pairing code shown in the APK UI; currently local/display-only until relay integration is wired into the APK.
 - MediaProjection foreground capture service with persistent notification.
 - MJPEG screen streaming endpoint at `/stream`.
 - Browser viewer page with fullscreen, touch, swipe, volume, brightness, wake, lock, back, home, recents, notifications, and power-menu buttons.
