@@ -3,6 +3,7 @@ package com.bos.app
 import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.Build
@@ -20,10 +21,9 @@ import androidx.core.content.ContextCompat
 import java.security.SecureRandom
 
 class MainActivity : AppCompatActivity() {
-    private lateinit var status: TextView
-    private lateinit var sessionUrl: TextView
-    private lateinit var remoteControlStatus: TextView
-    private lateinit var brightnessStatus: TextView
+    private lateinit var urlText: TextView
+    private lateinit var statusText: TextView
+    private lateinit var permissionText: TextView
     private var startAfterPermission = false
     private var autoSetupStarted = false
     private var promptedAccessibilityThisLaunch = false
@@ -32,7 +32,6 @@ class MainActivity : AppCompatActivity() {
     private val notificationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) {
-        // The foreground service still starts if the user denies this, but Android may hide the notification.
         continueAutoSetup()
     }
 
@@ -46,65 +45,73 @@ class MainActivity : AppCompatActivity() {
                 putExtra(CaptureService.EXTRA_PROJECTION_DATA, result.data)
             }
             ContextCompat.startForegroundService(this, captureIntent)
-            status.text = "Screen permission granted. BOS is starting sharing."
+            statusText.text = "Screen permission allowed. Starting session..."
             if (startAfterPermission) startLocalSession()
         } else {
-            status.text = "Screen permission was denied. BOS cannot show the phone screen without it."
+            statusText.text = "Screen permission denied. BOS cannot share the screen without it."
         }
         startAfterPermission = false
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        showMainScreen()
+        showSimpleScreen()
     }
 
-    private fun showMainScreen() {
-        val padding = dp(16)
+    private fun showSimpleScreen() {
+        val padding = dp(18)
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
             setPadding(padding, padding, padding, padding)
+            setBackgroundColor(Color.WHITE)
         }
-        val scroll = ScrollView(this).apply { addView(content) }
+        val scroll = ScrollView(this).apply {
+            setBackgroundColor(Color.WHITE)
+            addView(content)
+        }
 
-        content.addView(text("BOS", 30f, Gravity.CENTER))
-        content.addView(text("Same-Wi‑Fi screen sharing", 16f, Gravity.CENTER))
+        content.addView(text("BOS", 32f, Gravity.CENTER, Color.BLACK))
+        content.addView(text("URL", 14f, Gravity.CENTER, Color.DKGRAY).apply { setPadding(0, dp(12), 0, 0) })
 
-        content.addView(text("Live browser address", 14f).apply { setPadding(0, dp(12), 0, 0) })
-        sessionUrl = text("Not sharing yet", 20f).apply { setTextIsSelectable(true) }
-        content.addView(sessionUrl)
+        urlText = text("Permanent URL not connected yet\nStart local session for same-Wi‑Fi URL", 18f, Gravity.CENTER, Color.rgb(20, 90, 170)).apply {
+            setTextIsSelectable(true)
+            setPadding(0, dp(8), 0, dp(16))
+        }
+        content.addView(urlText)
 
-        status = text("BOS will ask setup permissions automatically. Then tap Start sharing. Same-Wi‑Fi devices can open the live address directly.", 15f)
-        status.setPadding(0, dp(8), 0, dp(12))
-        content.addView(status)
+        permissionText = text("Permissions: checking...", 14f, Gravity.CENTER, Color.DKGRAY).apply {
+            setPadding(0, 0, 0, dp(10))
+        }
+        content.addView(permissionText)
 
-        content.addView(text("Permanent BOS identity", 14f))
-        content.addView(text(permanentIdentity(), 18f))
+        statusText = text("Open BOS and allow setup permissions. Then tap Start local session.", 15f, Gravity.CENTER, Color.BLACK).apply {
+            setPadding(0, 0, 0, dp(20))
+        }
+        content.addView(statusText)
 
-        remoteControlStatus = text("Remote control: checking...", 15f).apply { setPadding(0, dp(12), 0, 0) }
-        content.addView(remoteControlStatus)
-        content.addView(button("Enable touch control") {
-            status.text = "Android Settings will ask you to allow or deny BOS Remote Control."
-            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        content.addView(button("Start local session") { startSharingFlow() }.apply {
+            textSize = 18f
+            setPadding(0, dp(10), 0, dp(10))
         })
 
-        brightnessStatus = text("Brightness control: checking...", 15f).apply { setPadding(0, dp(10), 0, 0) }
-        content.addView(brightnessStatus)
-        content.addView(button("Enable brightness control") {
-            status.text = "Android Settings will ask you to allow BOS to change system brightness."
-            startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:$packageName")))
-        })
-
-        content.addView(button("Start sharing") { startSharingFlow() }.apply { textSize = 18f })
-        content.addView(button("Stop sharing") {
+        content.addView(button("Stop") {
             LocalSessionServer.stop()
             stopService(Intent(this, CaptureService::class.java))
-            sessionUrl.text = "Not sharing yet"
-            status.text = "BOS sharing stopped."
+            urlText.text = "Permanent URL not connected yet\nStart local session for same-Wi‑Fi URL"
+            statusText.text = "Stopped."
         })
 
-        content.addView(text("Keep BOS running", 18f).apply { setPadding(0, dp(16), 0, 0) })
-        content.addView(text("While sharing, BOS runs as a foreground service with a notification so it can stay active in the background. Android may still stop capture after reboot, force close, battery restrictions, or if you revoke screen capture.", 13f))
+        content.addView(text("Device ID: ${permanentIdentity()}", 13f, Gravity.CENTER, Color.GRAY).apply {
+            setPadding(0, dp(18), 0, 0)
+        })
+
+        content.addView(text(
+            "Note: a real permanent internet URL needs BOS relay integration. The current button starts the same-Wi‑Fi session.",
+            12f,
+            Gravity.CENTER,
+            Color.GRAY
+        ).apply { setPadding(0, dp(12), 0, 0) })
 
         setContentView(scroll)
         refreshPermissionStatus()
@@ -122,23 +129,23 @@ class MainActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
         ) {
-            status.text = "BOS needs notification permission so you can see when sharing is active."
+            statusText.text = "Allow notification permission so BOS can show sharing status."
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
             return
         }
         if (!RemoteControlAccessibilityService.enabled() && !promptedAccessibilityThisLaunch) {
             promptedAccessibilityThisLaunch = true
-            status.text = "Enable BOS Remote Control if you want browser taps/swipes to control the phone."
+            statusText.text = "Enable BOS Remote Control if you want browser taps/swipes."
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
             return
         }
         if (!Settings.System.canWrite(this) && !promptedBrightnessThisLaunch) {
             promptedBrightnessThisLaunch = true
-            status.text = "Allow BOS to change brightness if you want brightness +/- buttons."
+            statusText.text = "Allow brightness control if you want brightness +/- buttons."
             startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:$packageName")))
             return
         }
-        status.text = "Setup checked. Tap Start sharing when ready."
+        statusText.text = "Setup checked. Tap Start local session."
     }
 
     private fun startSharingFlow() {
@@ -148,17 +155,17 @@ class MainActivity : AppCompatActivity() {
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
         startAfterPermission = true
-        status.text = "Approve Android screen capture, then BOS will show the local URL."
+        statusText.text = "Approve Android screen capture."
         requestScreenCapturePermission()
     }
 
     private fun startLocalSession() {
         try {
             val session = LocalSessionServer.start(this)
-            sessionUrl.text = session.url
-            status.text = "Sharing is live. On another device on the same Wi‑Fi, open the address above in Chrome."
+            urlText.text = session.url
+            statusText.text = "Local session started. Open this URL on the same Wi‑Fi."
         } catch (error: Exception) {
-            status.text = "Could not start sharing: ${error.message ?: "unknown error"}"
+            statusText.text = "Could not start session: ${error.message ?: "unknown error"}"
         }
     }
 
@@ -179,32 +186,29 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refreshPermissionStatus() {
-        if (::remoteControlStatus.isInitialized) {
-            remoteControlStatus.text = if (RemoteControlAccessibilityService.enabled()) {
-                "Touch control: enabled"
-            } else {
-                "Touch control: disabled — tap Enable touch control"
-            }
-        }
-        if (::brightnessStatus.isInitialized) {
-            brightnessStatus.text = if (Settings.System.canWrite(this)) {
-                "Brightness control: enabled"
-            } else {
-                "Brightness control: disabled — tap Enable brightness control"
-            }
-        }
+        if (!::permissionText.isInitialized) return
+        val touch = if (RemoteControlAccessibilityService.enabled()) "touch on" else "touch off"
+        val brightness = if (Settings.System.canWrite(this)) "brightness on" else "brightness off"
+        val notification = if (Build.VERSION.SDK_INT < 33 ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) "notification on" else "notification off"
+        permissionText.text = "Permissions: $notification • $touch • $brightness"
     }
 
-    private fun text(value: String, size: Float, gravity: Int = Gravity.START) = TextView(this).apply {
+    private fun text(value: String, size: Float, gravity: Int, color: Int) = TextView(this).apply {
         text = value
         textSize = size
         this.gravity = gravity
+        setTextColor(color)
         layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
     }
 
     private fun button(value: String, action: () -> Unit) = Button(this).apply {
         text = value
         setOnClickListener { action() }
+        layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            setMargins(0, dp(6), 0, dp(6))
+        }
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
@@ -212,8 +216,8 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refreshPermissionStatus()
-        if (autoSetupStarted) {
-            status.post { continueAutoSetup() }
+        if (autoSetupStarted && ::statusText.isInitialized) {
+            statusText.post { continueAutoSetup() }
         }
     }
 }
