@@ -12,6 +12,7 @@
     <application
         android:allowBackup="true"
         android:label="BOS"
+        android:usesCleartextTraffic="true"
         android:supportsRtl="true"
         android:theme="@style/Theme.BOS">
         <service

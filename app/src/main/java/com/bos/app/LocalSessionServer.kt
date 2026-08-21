@@ -63,7 +63,8 @@ object LocalSessionServer {
 
                 post("/input") {
                     val form = call.receiveParameters()
-                    val ok = handleInput(form["action"].orEmpty(), form)
+                    val params = form.toMap().mapValues { it.value.firstOrNull().orEmpty() }
+                    val ok = dispatchInput(params["action"].orEmpty(), params)
                     call.respondText(
                         if (ok) "ok" else "unsupported",
                         status = if (ok) HttpStatusCode.OK else HttpStatusCode.NotImplemented
@@ -75,20 +76,20 @@ object LocalSessionServer {
         return Session("http://${localIpv4Address()}:$PORT")
     }
 
-    private fun handleInput(action: String, form: io.ktor.http.Parameters): Boolean {
+    fun dispatchInput(action: String, params: Map<String, String>): Boolean {
         val ctx = appContext ?: return false
         return when (action) {
             "tap" -> {
-                val point = scaledPoint(form["x"], form["y"]) ?: return false
+                val point = scaledPoint(params["x"], params["y"]) ?: return false
                 RemoteControlAccessibilityService.tap(point.first, point.second)
             }
             "long_press" -> {
-                val point = scaledPoint(form["x"], form["y"]) ?: return false
+                val point = scaledPoint(params["x"], params["y"]) ?: return false
                 RemoteControlAccessibilityService.longPress(point.first, point.second)
             }
             "swipe" -> {
-                val start = scaledPoint(form["x1"], form["y1"]) ?: return false
-                val end = scaledPoint(form["x2"], form["y2"]) ?: return false
+                val start = scaledPoint(params["x1"], params["y1"]) ?: return false
+                val end = scaledPoint(params["x2"], params["y2"]) ?: return false
                 RemoteControlAccessibilityService.swipe(start.first, start.second, end.first, end.second, 220)
             }
             "back" -> RemoteControlAccessibilityService.back()

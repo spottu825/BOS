@@ -81,13 +81,14 @@ class MainActivity : AppCompatActivity() {
         }
         content.addView(urlText)
 
-        globalCodeText = text("Global code: ${globalPairCode()}\nNot online until relay is connected", 20f, Gravity.CENTER, Color.rgb(120, 60, 180)).apply {
+        globalCodeText = text(globalLine(), 20f, Gravity.CENTER, Color.rgb(120, 60, 180)).apply {
             setTextIsSelectable(true)
             setPadding(0, 0, 0, dp(14))
         }
         content.addView(globalCodeText)
         content.addView(button("Refresh global code") {
-            globalCodeText.text = "Global code: ${newGlobalPairCode()}\nNot online until relay is connected"
+            newGlobalPairCode()
+            globalCodeText.text = globalLine()
         })
 
         permissionText = text("Permissions: checking...", 14f, Gravity.CENTER, Color.DKGRAY).apply {
@@ -108,7 +109,7 @@ class MainActivity : AppCompatActivity() {
         content.addView(button("Stop") {
             LocalSessionServer.stop()
             stopService(Intent(this, CaptureService::class.java))
-            urlText.text = "Local URL: not started\nGlobal URL: not connected yet"
+            urlText.text = "Local URL: not started\nGlobal URL: stopped"
             statusText.text = "Stopped."
         })
 
@@ -117,7 +118,7 @@ class MainActivity : AppCompatActivity() {
         })
 
         content.addView(text(
-            "Note: a real permanent internet URL needs BOS relay integration. The current button starts the same-Wi‑Fi session.",
+            "Permanent global URL works only when this APK is built with BOS_RELAY_URL and the relay is hosted online.",
             12f,
             Gravity.CENTER,
             Color.GRAY
@@ -172,10 +173,32 @@ class MainActivity : AppCompatActivity() {
     private fun startLocalSession() {
         try {
             val session = LocalSessionServer.start(this)
-            urlText.text = "Local URL: ${session.url}\nGlobal URL: not connected yet"
-            statusText.text = "Local session started. Open the local URL on the same Wi‑Fi. Global code is generated, but internet pairing needs relay integration."
+            val global = GlobalRelayClient.viewerUrl ?: if (GlobalRelayClient.relayConfigured()) "connecting..." else "relay not configured in APK"
+            urlText.text = "Local URL: ${session.url}\nGlobal URL: $global"
+            statusText.text = if (GlobalRelayClient.relayConfigured()) {
+                "Session started. Wait a few seconds; global URL will appear if the hosted relay is reachable."
+            } else {
+                "Local session started. To get internet URL, build APK with BOS_RELAY_URL pointing at your hosted relay."
+            }
+            urlText.postDelayed({ refreshGlobalUrlLine(session.url) }, 2500)
         } catch (error: Exception) {
             statusText.text = "Could not start session: ${error.message ?: "unknown error"}"
+        }
+    }
+
+    private fun globalLine(): String {
+        val relay = if (GlobalRelayClient.relayConfigured()) "relay ready" else "relay not built in"
+        return "Global code: ${globalPairCode()}\n$relay"
+    }
+
+    private fun refreshGlobalUrlLine(localUrl: String) {
+        val global = GlobalRelayClient.viewerUrl
+            ?: GlobalRelayClient.lastError?.let { "error: $it" }
+            ?: if (GlobalRelayClient.relayConfigured()) "connecting..." else "relay not configured in APK"
+        urlText.text = "Local URL: $localUrl\nGlobal URL: $global"
+        globalCodeText.text = globalLine()
+        if (GlobalRelayClient.relayConfigured() && GlobalRelayClient.viewerUrl == null && GlobalRelayClient.lastError == null) {
+            urlText.postDelayed({ refreshGlobalUrlLine(localUrl) }, 2500)
         }
     }
 

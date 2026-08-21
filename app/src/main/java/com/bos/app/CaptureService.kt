@@ -36,7 +36,11 @@ class CaptureService : Service() {
         if (projectionData != null && !ScreenCapture.isRunning) {
             val manager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
             val projection = manager.getMediaProjection(resultCode, projectionData)
-            if (projection != null) ScreenCapture.start(applicationContext, projection) else stopSelf()
+            if (projection != null) {
+                ScreenCapture.start(applicationContext, projection)
+                val id = getSharedPreferences("bos", MODE_PRIVATE).getString("identity", null) ?: "BOS-UNKNOWN"
+                GlobalRelayClient.start(id)
+            } else stopSelf()
         } else if (projectionData == null && !ScreenCapture.isRunning) {
             // Android may restart a sticky foreground service without the original MediaProjection token.
             // We cannot recreate screen capture silently, so stop and let the user start sharing again.
@@ -46,6 +50,7 @@ class CaptureService : Service() {
     }
 
     override fun onDestroy() {
+        GlobalRelayClient.stop()
         ScreenCapture.stop()
         super.onDestroy()
     }

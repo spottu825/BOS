@@ -11,8 +11,24 @@ android {
         applicationId = "com.bos.app"
         minSdk = 29 // Android 10
         targetSdk = 34
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
+        val relayUrl = (project.findProperty("BOS_RELAY_URL") as String?) ?: System.getenv("BOS_RELAY_URL") ?: ""
+        buildConfigField("String", "BOS_RELAY_URL", "\"$relayUrl\"")
+    }
+
+    flavorDimensions += "mode"
+    productFlavors {
+        create("safe") {
+            dimension = "mode"
+            applicationIdSuffix = ".safe"
+            versionNameSuffix = "-safe"
+            buildConfigField("Boolean", "BOS_SAFE_BUILD", "true")
+        }
+        create("full") {
+            dimension = "mode"
+            buildConfigField("Boolean", "BOS_SAFE_BUILD", "false")
+        }
     }
 
     buildTypes {
@@ -28,6 +44,10 @@ android {
         isCoreLibraryDesugaringEnabled = true
     }
     kotlinOptions { jvmTarget = "17" }
+
+    buildFeatures {
+        buildConfig = true
+    }
 
     packaging {
         resources {
