@@ -63,7 +63,7 @@ object LocalSessionServer {
 
                 post("/input") {
                     val form = call.receiveParameters()
-                    val params = form.toMap().mapValues { it.value.firstOrNull().orEmpty() }
+                    val params = form.names().associateWith { name -> form[name].orEmpty() }
                     val ok = dispatchInput(params["action"].orEmpty(), params)
                     call.respondText(
                         if (ok) "ok" else "unsupported",
